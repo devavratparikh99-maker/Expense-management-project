@@ -8,7 +8,6 @@
 </head>
 <body>
 <div class="dashboard-container">
-
     <header class="dashboard-header">
         <h1>Welcome {{ userid }} (Admin)</h1>
         <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
@@ -29,6 +28,21 @@
     </div>
 
     <div class="card">
+        <h2>Add New User</h2>
+        <form action="{{ url_for('add_user') }}" method="post">
+            <input type="text" name="userid" placeholder="User ID" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <select name="role" required>
+                <option value="" disabled selected>Select Role</option>
+                <option value="employee">Employee</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button type="submit">Add User</button>
+        </form>
+    </div>
+
+    <div class="card">
         <h2>All Expenses</h2>
         <table>
             <tr><th>Employee ID</th><th>Category</th><th>Amount</th><th>Description</th><th>Status</th></tr>
@@ -43,8 +57,7 @@
             {% endfor %}
         </table>
     </div>
-    
-
 </div>
 </body>
 </html>
+
