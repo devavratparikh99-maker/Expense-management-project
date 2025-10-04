@@ -92,32 +92,40 @@ def add_expense():
     return redirect(url_for('employee_dashboard'))
 
 # --------------------- MANAGER DASHBOARD ---------------------
+# ------------------ MANAGER DASHBOARD ------------------
 @app.route('/manager/dashboard')
 def manager_dashboard():
     if 'role' not in session or session['role'] != 'manager':
-        return redirect(url_for('login'))
-    expenses = Expense.query.all()
+        return redirect(url_for('home'))  # redirect to login if not manager
+
+    expenses = Expense.query.all()  # Manager sees all expenses
     return render_template('manager.html', userid=session['userid'], expenses=expenses)
 
-@app.route('/manager/approve/<int:id>')
-def approve_expense(id):
+# ------------------ UPDATE EXPENSE STATUS ------------------
+@app.route('/manager/update_expense/<int:expense_id>/<action>')
+def update_expense(expense_id, action):
     if 'role' not in session or session['role'] != 'manager':
-        return redirect(url_for('login'))
-    exp = Expense.query.get(id)
-    exp.status = "Approved"
+        return redirect(url_for('home'))
+
+    exp = Expense.query.get(expense_id)
+    if not exp:
+        flash("Expense not found!", "danger")
+        return redirect(url_for('manager_dashboard'))
+
+    if action == 'approve':
+        exp.status = "Approved"
+        flash("Expense approved!", "success")
+    elif action == 'reject':
+        exp.status = "Rejected"
+        flash("Expense rejected!", "danger")
+    else:
+        flash("Invalid action!", "warning")
+        return redirect(url_for('manager_dashboard'))
+
     db.session.commit()
-    flash('Expense approved!', 'success')
     return redirect(url_for('manager_dashboard'))
 
-@app.route('/manager/reject/<int:id>')
-def reject_expense(id):
-    if 'role' not in session or session['role'] != 'manager':
-        return redirect(url_for('login'))
-    exp = Expense.query.get(id)
-    exp.status = "Rejected"
-    db.session.commit()
-    flash('Expense rejected!', 'danger')
-    return redirect(url_for('manager_dashboard'))
+
 
 # --------------------- ADMIN DASHBOARD ---------------------
 @app.route('/admin/dashboard')
@@ -151,4 +159,3 @@ def add_user():
 # --------------------- RUN APP ---------------------
 if __name__ == '__main__':
     app.run(debug=True)
-
