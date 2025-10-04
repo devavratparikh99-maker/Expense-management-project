@@ -1,160 +1,154 @@
-from flask import Flask, render_template, request, redirect, session, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+import os
 
 app = Flask(__name__)
-app.secret_key = 'devavrat_secret'  # fixed secret key
+app.secret_key = "supersecretkey"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 db = SQLAlchemy(app)
 
-# ------------------ MODELS ------------------
+# --------------------- DATABASE MODELS ---------------------
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     userid = db.Column(db.String(50), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), default='employee')  # employee/manager/admin
+    password = db.Column(db.String(200), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
 
 class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    employee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    category = db.Column(db.String(50), nullable=False)
+    employee_id = db.Column(db.String(50), nullable=False)
+    category = db.Column(db.String(100), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    description = db.Column(db.String(200))
-    status = db.Column(db.String(20), default='Pending')  # Pending/Approved/Rejected
+    description = db.Column(db.String(300))
+    status = db.Column(db.String(20), default="Pending")
 
-# ------------------ ROUTES ------------------
+# --------------------- INITIALIZE DATABASE ---------------------
+with app.app_context():
+    db.create_all()
+    if not User.query.filter_by(userid='admin1').first():
+        u1 = User(userid='emp1', password=generate_password_hash('1234'), role='employee')
+        u2 = User(userid='man1', password=generate_password_hash('1234'), role='manager')
+        u3 = User(userid='admin1', password=generate_password_hash('1234'), role='admin')
+        db.session.add_all([u1, u2, u3])
+        db.session.commit()
+        print("✅ Default users added: emp1 / man1 / admin1")
 
+# --------------------- ROUTES ---------------------
 @app.route('/')
 def home():
-    return render_template('login.html')
+    return redirect(url_for('login'))
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    userid = request.form['userid']
-    password = request.form['password']
+    if request.method == 'POST':
+        userid = request.form['userid']
+        password = request.form['password']
+        user = User.query.filter_by(userid=userid).first()
 
-    user = User.query.filter_by(userid=userid).first()
-    if user and check_password_hash(user.password, password):
-        session['user_id'] = user.id
-        session['userid'] = user.userid
-        session['role'] = user.role.lower()
-        flash(f"Welcome {user.userid}!", "success")
+        if user and check_password_hash(user.password, password):
+            session['userid'] = user.userid
+            session['role'] = user.role
+            flash('Login successful!', 'success')
 
-        if session['role'] == 'employee':
-            return redirect(url_for('employee_dashboard'))
-        elif session['role'] == 'manager':
-            return redirect(url_for('manager_dashboard'))
-        elif session['role'] == 'admin':
-            return redirect(url_for('admin_dashboard'))
-    else:
-        flash("Invalid credentials!", "danger")
-        return redirect(url_for('home'))
+            if user.role == 'employee':
+                return redirect(url_for('employee_dashboard'))
+            elif user.role == 'manager':
+                return redirect(url_for('manager_dashboard'))
+            elif user.role == 'admin':
+                return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Invalid UserID or Password', 'danger')
 
-@app.route('/dashboard')
-def employee_dashboard():
-    if 'role' not in session or session['role'] != 'employee':
-        flash("Access denied!", "danger")
-        return redirect(url_for('home'))
-    user_expenses = Expense.query.filter_by(employee_id=session['user_id']).all()
-    return render_template('employee.html', userid=session['userid'], expenses=user_expenses)
-
-@app.route('/manager-dashboard')
-def manager_dashboard():
-    if 'role' not in session or session['role'] != 'manager':
-        flash("Access denied!", "danger")
-        return redirect(url_for('home'))
-    pending_expenses = Expense.query.filter_by(status='Pending').all()
-    return render_template('manager.html', userid=session['userid'], expenses=pending_expenses)
-
-@app.route('/admin-dashboard')
-def admin_dashboard():
-    if 'role' not in session or session['role'] != 'admin':
-        flash("Access denied!", "danger")
-        return redirect(url_for('home'))
-    all_expenses = Expense.query.all()
-    all_users = User.query.all()
-    return render_template('admin.html', userid=session['userid'], expenses=all_expenses, users=all_users)
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
-    flash("Logged out successfully!", "info")
-    return redirect(url_for('home'))
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('login'))
 
-# ------------------ ADD EXPENSE ------------------
-@app.route('/add-expense', methods=['POST'])
+# --------------------- EMPLOYEE DASHBOARD ---------------------
+@app.route('/employee/dashboard')
+def employee_dashboard():
+    if 'role' not in session or session['role'] != 'employee':
+        return redirect(url_for('login'))
+    expenses = Expense.query.filter_by(employee_id=session['userid']).all()
+    return render_template('employee.html', userid=session['userid'], expenses=expenses)
+
+@app.route('/employee/add', methods=['POST'])
 def add_expense():
     if 'role' not in session or session['role'] != 'employee':
-        flash("Access denied!", "danger")
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
 
     category = request.form['category']
     amount = request.form['amount']
     description = request.form['description']
 
-    new_expense = Expense(
-        employee_id=session['user_id'],
-        category=category,
-        amount=amount,
-        description=description
-    )
+    new_expense = Expense(employee_id=session['userid'], category=category, amount=amount, description=description)
     db.session.add(new_expense)
     db.session.commit()
-    flash("Expense added successfully!", "success")
+    flash('Expense added successfully!', 'success')
     return redirect(url_for('employee_dashboard'))
 
-# ------------------ MANAGER APPROVE/REJECT ------------------
-@app.route('/update-expense/<int:expense_id>/<action>')
-def update_expense(expense_id, action):
+# --------------------- MANAGER DASHBOARD ---------------------
+@app.route('/manager/dashboard')
+def manager_dashboard():
     if 'role' not in session or session['role'] != 'manager':
-        flash("Access denied!", "danger")
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
+    expenses = Expense.query.all()
+    return render_template('manager.html', userid=session['userid'], expenses=expenses)
 
-    expense = Expense.query.get_or_404(expense_id)
-    if action.lower() == 'approve':
-        expense.status = 'Approved'
-    elif action.lower() == 'reject':
-        expense.status = 'Rejected'
+@app.route('/manager/approve/<int:id>')
+def approve_expense(id):
+    if 'role' not in session or session['role'] != 'manager':
+        return redirect(url_for('login'))
+    exp = Expense.query.get(id)
+    exp.status = "Approved"
     db.session.commit()
-    flash(f"Expense {action.capitalize()}d successfully!", "success")
+    flash('Expense approved!', 'success')
     return redirect(url_for('manager_dashboard'))
 
-# ------------------ INITIALIZE DB ------------------
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # Add default users if not exist
-        if not User.query.filter_by(userid='emp1').first():
-            u1 = User(userid='emp1', password=generate_password_hash('1234'), role='employee')
-            u2 = User(userid='man1', password=generate_password_hash('1234'), role='manager')
-            u3 = User(userid='admin1', password=generate_password_hash('1234'), role='admin')
-            db.session.add_all([u1,u2,u3])
-            db.session.commit()
-    app.run(debug=True)
+@app.route('/manager/reject/<int:id>')
+def reject_expense(id):
+    if 'role' not in session or session['role'] != 'manager':
+        return redirect(url_for('login'))
+    exp = Expense.query.get(id)
+    exp.status = "Rejected"
+    db.session.commit()
+    flash('Expense rejected!', 'danger')
+    return redirect(url_for('manager_dashboard'))
 
-# ------------------ ADMIN: ADD USER ------------------
-@app.route('/add-user', methods=['POST'])
+# --------------------- ADMIN DASHBOARD ---------------------
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'role' not in session or session['role'] != 'admin':
+        return redirect(url_for('login'))
+    users = User.query.all()
+    expenses = Expense.query.all()
+    return render_template('admin.html', userid=session['userid'], users=users, expenses=expenses)
+
+@app.route('/admin/add_user', methods=['POST'])
 def add_user():
     if 'role' not in session or session['role'] != 'admin':
-        flash("Access denied!", "danger")
-        return redirect(url_for('home'))
+        return redirect(url_for('login'))
 
     userid = request.form['userid']
     password = request.form['password']
     role = request.form['role']
 
     if User.query.filter_by(userid=userid).first():
-        flash("UserID already exists!", "danger")
-    else:
-        new_user = User(
-            userid=userid,
-            password=generate_password_hash(password),
-            role=role.lower()
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        flash(f"User '{userid}' added successfully!", "success")
+        flash('User ID already exists!', 'warning')
+        return redirect(url_for('admin_dashboard'))
 
+    hashed_pw = generate_password_hash(password)
+    new_user = User(userid=userid, password=hashed_pw, role=role)
+    db.session.add(new_user)
+    db.session.commit()
+    flash(f'User "{userid}" added as {role} successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
+
+# --------------------- RUN APP ---------------------
+if __name__ == '__main__':
+    app.run(debug=True)
+
