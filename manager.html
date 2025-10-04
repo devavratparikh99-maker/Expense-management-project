@@ -14,19 +14,43 @@
         <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
     </header>
 
-    <div class="card">
-        <h2>Pending Expenses</h2>
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- All Expenses Card -->
+    <div class="login-box card">
+        <h2>All Expenses</h2>
         <table>
-            <tr><th>Employee</th><th>Category</th><th>Amount</th><th>Description</th><th>Action</th></tr>
+            <tr>
+                <th>ID</th>
+                <th>Employee</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
             {% for e in expenses %}
             <tr>
+                <td>{{ e.id }}</td>
                 <td>{{ e.employee_id }}</td>
                 <td>{{ e.category }}</td>
                 <td>{{ e.amount }}</td>
                 <td>{{ e.description }}</td>
+                <td>{{ e.status }}</td>
                 <td>
-                    <a class="approve-btn" href="{{ url_for('update_expense', expense_id=e.id, action='approve') }}">Approve</a>
-                    <a class="reject-btn" href="{{ url_for('update_expense', expense_id=e.id, action='reject') }}">Reject</a>
+                    {% if e.status == 'Pending' %}
+                    <a class="btn approve" href="{{ url_for('update_expense', expense_id=e.id, action='approve') }}">Approve</a>
+                    <a class="btn reject" href="{{ url_for('update_expense', expense_id=e.id, action='reject') }}">Reject</a>
+                    {% else %}
+                    Done
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -36,5 +60,3 @@
 </div>
 </body>
 </html>
-
-
