@@ -1,63 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Page</title>
-  <style>
-    /* Reset default styles */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    /* Background gradient */
-    body {
-      background: linear-gradient(135deg, #0a0a0a, #0d1b2a);
-      min-height: 100vh;
-      color: #ffffff;
-    }
-
-    /* Header */
-    header {
-      background: rgba(15, 25, 35, 0.95);
-      padding: 20px 40px;
-      box-shadow: 0 2px 15px rgba(0, 191, 255, 0.3);
-      border-bottom: 2px solid rgba(0, 191, 255, 0.5);
-    }
-
-    header h1 {
-      color: #00bfff;
-      font-size: 2rem;
-      letter-spacing: 2px;
-      text-shadow: 0 0 15px rgba(0, 191, 255, 0.8);
-    }
-
-    /* Empty content area */
-    main {
-      padding: 40px;
-    }
-
-    main p {
-      color: #88a4c6;
-      font-size: 1.2rem;
-      text-align: center;
-      margin-top: 200px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+<div class="dashboard-container">
 
-  <header>
-    <h1>Admin</h1>
-  </header>
+    <header class="dashboard-header">
+        <h1>Welcome {{ userid }} (Admin)</h1>
+        <a class="logout-btn" href="{{ url_for('logout') }}">Logout</a>
+    </header>
 
-  <main>
-    <!-- Add your dashboard, tables, and content here later -->
-    <p>This is your admin page. Backend content will appear here.</p>
-  </main>
+    <div class="card">
+        <h2>All Users</h2>
+        <table>
+            <tr><th>ID</th><th>UserID</th><th>Role</th></tr>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.userid }}</td>
+                <td>{{ u.role }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
 
+    <div class="card">
+        <h2>All Expenses</h2>
+        <table>
+            <tr><th>Employee ID</th><th>Category</th><th>Amount</th><th>Description</th><th>Status</th></tr>
+            {% for e in expenses %}
+            <tr>
+                <td>{{ e.employee_id }}</td>
+                <td>{{ e.category }}</td>
+                <td>{{ e.amount }}</td>
+                <td>{{ e.description }}</td>
+                <td>{{ e.status }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    
+
+</div>
 </body>
 </html>
